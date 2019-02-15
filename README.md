@@ -15,6 +15,8 @@ An attempt to do weather data QC with machine learning algorithms.
 
   This is the first script you would run. It takes a file, or directory (and a pattern) as argument) and combines all the gates from all the sweeps into 1 hdf5 file.
   
+  This script takes a **long** time computing the altitude column.
+  
   I suggest saving the output under a directory named **h5_files**.
   
 - h52ds.py
