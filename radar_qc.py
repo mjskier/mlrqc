@@ -25,7 +25,7 @@ def usage():
 
 class Model:
 
-    def load_model(prefix):
+    def load_model(self, prefix):
         print('Loading model from saved ', prefix + '.yaml')
         
         yaml_file = open(prefix + '.yaml', 'r')
@@ -44,7 +44,7 @@ class Model:
 
         self.model = loaded_model
 
-    def save_model(prefix):
+    def save_model(self, prefix):
 
         # Serialize model to YAML
     
@@ -56,11 +56,11 @@ class Model:
     
             self.model.save_weights(prefix + '.h5')
     
-    def create_model(input_size):
+    def create_model(self, input_size):
         print('Base create_model needs to be specialized')
         return False
 
-    def train(X_train, Y_train, prefix):
+    def train(self, X_train, Y_train, prefix):
         print('Training a ', self.identify())
         
         # Add some callbacks
@@ -92,11 +92,12 @@ class Model:
         with open(prefix + '_history.txt', 'w') as fp:
             print(history.history, file = fp)
     
-    def evaluate(X_test, Y_test):
+    def evaluate(self, X_test, Y_test):
         print('Evaluating using a ', self.identify())
         return self.model.evaluate(X_test, Y_test, batch_size = 128)
 
 class NeuralNetwork(Model):
+    
     def __init__(self, idim):
         print('Creating Neural Network model')
         self.create_model(idim)
