@@ -1,6 +1,7 @@
 import math
 import os, sys
 import numpy as np
+from scipy import ndimage
 import netCDF4 as nc4
 import re
 import h5py
@@ -11,6 +12,11 @@ import h5py
 EarthRadiusKm = 6375.636
 EarthRadiusSquare = 6375.636 * 6375.636
 DegToRad = 0.01745329251994372
+
+# For doing average of neighbor values
+
+avg_mask = np.ones((3, 3))
+avg_mask[1, 1] = 0
 
 def computeHtKmAirborn(elDeg, slantRangeKm, aircraftHtKm):
     elRad = elDeg * DegToRad
@@ -27,7 +33,7 @@ def normalize(X):
     # print('X: ', X.shape)
     # print('min_maxs shape: ', min_maxs.shape)
 
-    # Remember min and max we used so that we can notmalize test data later
+    # Remember min and max we used so that we can normalize test data later
     
     for field in range(X.shape[0]):
         # print('X[', field, ']: ', X[field].shape)
@@ -140,18 +146,31 @@ def split_dataset(X, Y, split = 90):
 def fill_expected(O, E):
     return (O == E).astype(int)
 
-#
+# Compute neighbor average for a given variable
+# var: 2D variable from the netcdf file
+# max_x, max_y: 2D dimensions
+# return: numpy array of averages
+
+def compute_avgs(var, max_x, max_y, fill_val):
+    return ndimage.generic_filter(var, np.nanmean, size = 3, footprint = avg_mask,
+                                  mode = 'constant', cval = np.NaN)
+
 # Simple for now
-# X: (6, *) array
+# X: (9, *) array  (ZZ, VV, SW, NCP, ALT, AZZ, AVV, ASW, ANCP)
 # Y: (1, *) array
 #
 # TODO pass fields as arguments...
 
+def field_names():
+    return ['ZZ', 'VV', 'SW', 'NCP', 'ALT', 'AZZ', 'AVV', 'ASW', 'ANCP']
+
 def load_netcdf(loc, pattern = None):
     
     my_vars = [ 'ZZ', 'VV', 'SW', 'NCP', 'VG']
+    my_avgs = [ 'AZZ', 'AVV', 'ASW', 'ANCP' ]
     result_var = 'VG'
     alt_index = len(my_vars)        # Index of altitude
+    avg_offset = alt_index + 1      # Averages will be after the altitude
     
     file_list = expand_path(loc, pattern)
     num_files = len(file_list)
@@ -160,16 +179,13 @@ def load_netcdf(loc, pattern = None):
     flat_size = max_x * max_y
     num_cols = num_files * flat_size
 
-    # print("flat size: ", flat_size)
-    dim = (len(my_vars) + 1, num_cols)  # +1 for altitude added later
+    dim = (len(my_vars) + 1 + len(my_avgs), num_cols)
     
     X = np.empty(dim)
     VG = np.empty(num_cols)
     
-    # print("X before: ", X.shape)
-    
     ob_index = 0
-    fillValue = None
+    fill_val = None
     
     for path in file_list:
         print ('Reading ', path)
@@ -182,17 +198,26 @@ def load_netcdf(loc, pattern = None):
         plane_alts = nc_ds.variables['altitude'] # (time)
         ray_angles = nc_ds.variables['elevation'] # (time)
         ranges = nc_ds.variables['range'] # (time)
-
+        
         # Read the "feature" variables
         
         for var in range(len(my_vars)):
             my_var = nc_ds.variables[my_vars[var]]
-            fillValue = getattr(my_var, '_FillValue')
-                                    
+            fill_val = getattr(my_var, '_FillValue')
+
+            # Flatten it and append to the X array
             one_d = (my_var[:]).reshape(-1)
             X[var, range(ob_index, ob_index + one_d.size)] = one_d
 
-        # Add the height
+            # Compute the neighbor average, and append it to X
+            if var == 4:        # Don't average VG
+                continue
+            print('Computing averages for ', my_vars[var])
+            var_avrg = compute_avgs(my_var, max_time, max_range, fill_val)
+            one_d = (var_avrg[:]).reshape(-1)
+            X[var + avg_offset, range(ob_index, ob_index + one_d.size)] = one_d
+            
+        # Compute and add the height
 
         print('Computing altitudes for ', max_time * max_range, ' entries')
         heights = np.empty( (max_time, max_range) )
@@ -211,10 +236,10 @@ def load_netcdf(loc, pattern = None):
         nc_ds.close()
         ob_index += one_d.size
 
-    # Remove columns where VV is fillValue (Should that be done earlier?)
+    # Remove columns where VV is fill_val (Should that be done earlier?)
     #  as we are processing each file?
     
-    X = X[:, X[0] != fillValue]
+    X = X[:, X[0] != fill_val]
 
     # Randomize the data
 
@@ -244,3 +269,21 @@ def load_h5(loc):
     print('Y: ', Y.shape)
 
     return X, Y
+
+#
+# Precision, recall, and f1_score
+# Not implemented yet
+#
+
+def precision(matrix):
+    return 1
+
+def recall(matrix):
+    return 1
+
+def f1_score(prec, recl):
+    return 2 * prec * recl / (prec + recl)
+
+
+
+
