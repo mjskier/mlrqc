@@ -109,7 +109,7 @@ class Model:
     def predict_classes(self, X_test):
         return self.model.predict_classes(X_test)
 
-    def show_prediction_metrics(Y, predictions):
+    def show_prediction_metrics(self, Y_test, predictions):
         print('Accuracy: ', metrics.accuracy_score(Y_test, predictions))
 
         matrix = confusion_matrix(Y_test, predictions)
@@ -161,7 +161,9 @@ class RandomForest(Model):
         print('Creating Random Forest model. Input dim: ', idim)
 
     def create_model(self, idim): # TODO parameterise n_estimators
-        self.model = RandomForestClassifier(n_estimators = 30)
+        self.model = RandomForestClassifier(n_estimators = 100, n_jobs = -1,
+                                            random_state = 50, oob_score = True,
+                                            min_samples_leaf = 50)
 
     def identify(self):
         return 'Random Forest'
@@ -283,7 +285,7 @@ def train_model(args):
     model = new_model(args.model)
     print('Model: ', type(model))
     
-    if args.load: # load with trained weight
+    if args.model_to_load: # load with trained weight
         model.load_model(args.model_to_load)
     else: 
         model.create_model(X_train.shape[1])
@@ -297,8 +299,7 @@ def train_model(args):
     # evaluate the model
     
     predictions = model.predict_classes(X_test).reshape(-1)
-    self.show_prediction_metrics(Y_test, predictions)
-    
+    model.show_prediction_metrics(Y_test, predictions)
 
 def run_model(args):
     # Load the dataset
@@ -314,7 +315,7 @@ def run_model(args):
     model.load_model(args.model_to_load)
     
     predictions = model.predict_classes(X).reshape(-1)
-    self.show_prediction_metrics(Y, predictions)
+    model.show_prediction_metrics(Y, predictions)
     
     
     # TODO Write the results
