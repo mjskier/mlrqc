@@ -165,7 +165,7 @@ class RandomForest(Model):
                                             random_state = 50, oob_score = True,
                                             min_samples_leaf = 50)
 
-    def identify(self):
+
         return 'Random Forest'
     
     def save_model(self, prefix):
@@ -187,7 +187,7 @@ class RandomForest(Model):
         
     def predict_classes(self, X_test):
         return self.model.predict(X_test)
-        
+
 class LogisticRegression(Model):
 
     def __init__(self, idim):
@@ -301,10 +301,23 @@ def train_model(args):
     predictions = model.predict_classes(X_test).reshape(-1)
     model.show_prediction_metrics(Y_test, predictions)
 
+    # # debug: Try to run on the testing set to see if we are way off like
+    # #        after loading the model in run_model
+
+    # tX, tY = load_h5((args.input_file).replace('train', 'test'))
+    # tX, dont_care = normalize(tX)
+    # tX = tX.T
+    # tY = tY.T
+
+    # t_predictions = model.predict_classes(tX).reshape(-1)
+    # model.show_prediction_metrics(tY, t_predictions)
+    
 def run_model(args):
     # Load the dataset
 
     X, Y = load_h5(args.input_file)
+    X, min_max = normalize(X)
+    
     X = X.T
     Y = Y.T
 
@@ -313,10 +326,9 @@ def run_model(args):
     model = new_model(args.model) # TODO deduct the model type from the saved model
     print('Model: ', type(model))
     model.load_model(args.model_to_load)
-    
+
     predictions = model.predict_classes(X).reshape(-1)
     model.show_prediction_metrics(Y, predictions)
-    
     
     # TODO Write the results
     # Current thinking: Reading from and writing to the original radar file is done from an external script
@@ -343,7 +355,6 @@ def main(argv):
     parser.add_argument('-m', '--model', action = 'store', dest = 'model',
                         choices = { 'nn', 'lr', 'l1l2', 'rf', 'svm' },
                         help = 'nn: Neural network, ' +
-                        'svm: Support Vector Machine, ' +
                         'lr: Logistic Regression, ' +
                         'rf: Random Forrest, ' +
                         'l1l2: Logistic regression with L1 and L2 regularization',
