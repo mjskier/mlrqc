@@ -163,8 +163,8 @@ class RandomForest(Model):
     def create_model(self, idim): # TODO parameterise n_estimators
         self.model = RandomForestClassifier(n_estimators = 100, n_jobs = -1,
                                             random_state = 50, oob_score = True,
-                                            min_samples_leaf = 50)
-
+                                            min_samples_leaf = 50,
+                                            class_weight = 'balanced')
 
         return 'Random Forest'
     

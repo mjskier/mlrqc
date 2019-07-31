@@ -96,34 +96,6 @@ def get_dim(file_list):
 # Load a dataset so that each file is a slice of 6 variables.
 # Each variable will be a 2d plane
 
-def not_used_load_dataset_4d(loc, pattern = None):
-
-    my_vars = [ 'ZZ', 'VV', 'SW', 'NCP', 'VG' ]
-    result_var = 'VG'
-
-    file_list = expand_path(loc, pattern)
-    num_files = len(file_list)
-
-    dim = get_dim(file_list)    # (max x, max y)
-    print ('--- dim: ', dim)
-    dim = (num_files,) + (6,) + dim
-    
-    X = np.empty(dim)
-    print("X: ", X.shape)
-
-    f_count = 0
-    for path in file_list:
-        print ('Reading ', path)
-        nc_ds = nc4.Dataset(path, 'r')
-        v_count = 0
-        for var in my_vars:
-            my_var = nc_ds.variables[var]
-            X[f_count,v_count,:] = my_var[:]
-        nc_ds.close()
-
-    return X
-
-
 #
 # Slit X and Y into X_train, Y_train, X_test, Y_test
 #
@@ -152,7 +124,11 @@ def fill_expected(O, E):
 # return: numpy array of averages
 
 def compute_avgs(var, max_x, max_y, fill_val):
-    return ndimage.generic_filter(var, np.nanmean, size = 3, footprint = avg_mask,
+    return ndimage.generic_filter(var, np.nanmean, footprint = avg_mask,
+                                  mode = 'constant', cval = np.NaN)
+
+def compute_stds(var, max_x, max_y, fill_val):
+    return ndimage.generic_filter(var, np.nanstd, footprint = avg_mask,
                                   mode = 'constant', cval = np.NaN)
 
 # Simple for now
@@ -161,8 +137,19 @@ def compute_avgs(var, max_x, max_y, fill_val):
 #
 # TODO pass fields as arguments...
 
+# This is called to find out the names of all our fields, once
+# they have been manipulated (averages added...)
+
 def field_names():
     return ['ZZ', 'VV', 'SW', 'NCP', 'ALT', 'AZZ', 'AVV', 'ASW', 'ANCP']
+
+# The first variable is the original (pre-clean) key
+# The "result' variabe is the cleaned up field.
+# To create Y, we compare the "key" to the "cleaned" variable.
+
+# ALT and all the averages are added by the script.
+# Note that once we compute Y, we get read of the cleaned up field
+#     because it isn't needed anymore for training or testing.
 
 def load_netcdf(loc, pattern = None):
     
